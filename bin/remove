@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+
+require('passwd_group/file')
+require('passwd_group/manipulate')
+
+CLASS_MAP = {
+  passwd: 'Passwd',
+  group: 'Group'
+}.freeze
+
+ARGV_FILE_TYPE = 0.freeze
+ARGV_ENTITY_NAME = 1.freeze
+
+EXIT_SUCCESS = 0.freeze
+EXIT_INVALID_ARGS = 1.freeze
+EXIT_PERMISSION_DENIED = 2.freeze
+
+unless ARGV.count == 2 && CLASS_MAP.has_key?(ARGV[ARGV_FILE_TYPE].to_sym) 
+  puts('Usage: remove_user file_type entity_name')
+  puts("    file_type:   #{CLASS_MAP.keys.join(', ')}")
+  puts('    entity_name: user name or group name')
+  exit(EXIT_INVALID_ARGS)
+end
+
+require("passwd_group/#{ARGV[ARGV_FILE_TYPE]}")
+
+klass = PasswdGroup.const_get(CLASS_MAP[ARGV[ARGV_FILE_TYPE].to_sym])
+unless File.writable?(klass::PATH)
+  puts("File #{klass::PATH} is not writable. Consider running with sudo.")
+  exit(EXIT_PERMISSION_DENIED)
+end
+
+manipulator = PasswdGroup::Manipulate.new(klass)
+tmpfile = manipulator.remove(*ARGV[1..-1])
+FileUtils.move(tmpfile, klass::PATH)
